@@ -8,11 +8,11 @@ export async function getSentimentAnalysis(
   commentCount: string
 ): Promise<{ data: SentimentOutput } | { error: string }> {
   
-  const webhookUrl = process.env.N8N_WEBHOOK_URL;
+  const webhookUrl = 'https://unreleasible-pocked-azucena.ngrok-free.dev/webhook/sentimento';
 
   if (!webhookUrl || webhookUrl.includes('placeholder')) {
-    console.error('N8N_WEBHOOK_URL is not set or is a placeholder in environment variables.');
-    return { error: 'A URL do webhook de análise não está configurada corretamente. Configure-a no arquivo .env' };
+    console.error('N8N_WEBHOOK_URL is not set or is a placeholder.');
+    return { error: 'A URL do webhook de análise não está configurada.' };
   }
   
   console.log('Sending data to N8N webhook for analysis:', { url, caption, commentCount });
@@ -28,6 +28,7 @@ export async function getSentimentAnalysis(
         legenda: caption,
         quantidade_comentarios: commentCount ? parseInt(commentCount, 10) : 0,
       }),
+      cache: 'no-store',
     });
 
     if (!response.ok) {
