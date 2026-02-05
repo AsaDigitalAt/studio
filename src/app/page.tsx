@@ -123,7 +123,7 @@ export default function CosmicObserverPage() {
         toast({
           variant: "destructive",
           title: "Análise Remota Indisponível",
-          description: "Exibindo apenas extração local de dados.",
+          description: result.error || "Exibindo apenas extração local de dados.",
         });
         setStatus('review');
         return;
@@ -180,14 +180,14 @@ export default function CosmicObserverPage() {
 
     try {
       const runData: Omit<TaggingRun, 'id' | 'createdAt'> & {createdAt: any} = {
-        sourceUrl: analysis.normalizedUrl,
+        sourceUrl: url,
+        normalizedUrl: analysis.normalizedUrl,
         sourceType: analysis.sourceType,
         confirmedUsernames: confirmedTags,
         commentCount: commentCount ? parseInt(commentCount) : 0,
         sentimentSummary: analysis.sentimentData?.resumo_geral || null,
         createdBy: user.uid,
         createdAt: serverTimestamp(),
-        // optionalText is not in the type, but let's add it
         ...(optionalText && { optionalText }),
       };
 
