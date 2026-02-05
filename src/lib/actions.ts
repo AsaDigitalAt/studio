@@ -1,6 +1,6 @@
 'use server';
 
-import type { SentimentOutput } from '@/lib/types';
+import type { CommentAnalysis, SentimentOutput } from '@/lib/types';
 
 export async function getSentimentAnalysis(
   url: string,
@@ -37,7 +37,27 @@ export async function getSentimentAnalysis(
       return { error: `O serviço de análise retornou um erro: ${response.status}.` };
     }
 
-    const data: SentimentOutput = await response.json();
+    const rawData = await response.json();
+
+    // Re-construct the object to ensure it's a plain, serializable object.
+    const data: SentimentOutput = {
+      resumo_geral: rawData.resumo_geral,
+      totais: {
+        positivos: rawData.totais.positivos,
+        neutros: rawData.totais.neutros,
+        negativos: rawData.totais.negativos,
+        total: rawData.totais.total,
+      },
+      comentarios_analisados: (rawData.comentarios_analisados || []).map((c: any): CommentAnalysis => ({
+        nome_usuario: c.nome_usuario,
+        link_comentario: c.link_comentario,
+        texto: c.texto,
+        sentimento: c.sentimento,
+        justificativa_curta: c.justificativa_curta,
+        confianca: c.confianca,
+      })),
+    };
+
     return { data };
 
   } catch (error) {
