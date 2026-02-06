@@ -98,39 +98,51 @@ export default function CosmicObserverPage() {
     setLoadingText('Acessando os fluxos de sentimento...');
 
     startTransition(async () => {
-      const result = await getSentimentAnalysis(url, optionalText, commentCount);
+      const remoteAnalysisResult = await getSentimentAnalysis(url, optionalText, commentCount);
+      const localResult = analyzeLink(url, optionalText);
       
-      if (result.error) {
+      let finalAnalysis: AnalysisResult;
+
+      if (remoteAnalysisResult.error) {
         toast({
           variant: "destructive",
           title: "Análise Remota Indisponível",
-          description: result.error,
+          description: "Exibindo dados de fallback. " + remoteAnalysisResult.error,
         });
-        setStatus('idle');
-        return;
-      }
-      
-      const localResult = analyzeLink(url, optionalText);
-      const sentimentData = result.data;
-      const webhookUsernames = sentimentData.comentarios_analisados.map(c => sanitizeUsername(c.nome_usuario));
-      const allTags = Array.from(new Set([...localResult.suggestedUsernames, ...webhookUsernames]));
-      const warnings = [...localResult.warnings];
-      if (allTags.length === 0) {
-         if (!warnings.includes('Nenhum dado detectado.')) warnings.push('Nenhum dado detectado.');
+        
+        finalAnalysis = {
+          ...localResult,
+          warnings: [
+            ...localResult.warnings,
+            "A análise de sentimento falhou. Os dados abaixo são um fallback com base apenas no link e legenda."
+          ],
+          sentimentData: undefined
+        };
+        setConfirmedTags(localResult.suggestedUsernames);
+
+      } else {
+        const sentimentData = remoteAnalysisResult.data;
+        const webhookUsernames = sentimentData.comentarios_analisados.map(c => sanitizeUsername(c.nome_usuario));
+        const allTags = Array.from(new Set([...localResult.suggestedUsernames, ...webhookUsernames]));
+        const warnings = [...localResult.warnings];
+        if (allTags.length === 0) {
+           if (!warnings.includes('Nenhum dado detectado.')) warnings.push('Nenhum dado detectado.');
+        }
+
+        finalAnalysis = {
+          ...localResult,
+          suggestedUsernames: allTags,
+          sentimentData: sentimentData,
+          warnings: warnings
+        };
+        setConfirmedTags(allTags);
+        toast({
+          title: "Análise Concluída",
+          description: "Dados de sentimento recebidos com sucesso!",
+        });
       }
 
-      setAnalysis({
-        ...localResult,
-        suggestedUsernames: allTags,
-        sentimentData: sentimentData,
-        warnings: warnings
-      });
-      setConfirmedTags(allTags);
-      
-      toast({
-        title: "Análise Concluída",
-        description: "Dados de sentimento recebidos com sucesso!",
-      });
+      setAnalysis(finalAnalysis);
       setStatus('review');
     });
   };
