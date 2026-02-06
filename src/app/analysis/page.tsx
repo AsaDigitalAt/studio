@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 // --- Firebase Imports ---
 import { type User } from 'firebase/auth';
-import { collection, addDoc, onSnapshot, query, serverTimestamp, orderBy, where } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
 
 // --- Local Imports ---
 import { useToast } from '@/hooks/use-toast';
@@ -55,11 +55,13 @@ export default function CosmicObserverPage() {
   
   useEffect(() => {
     if (!user || !firestore) return;
-    
+
+    // The query on createdBy and createdAt requires a composite index in Firestore.
+    // To avoid forcing manual index creation in the Firebase console,
+    // we'll fetch without ordering and sort on the client.
     const q = query(
       collection(firestore, 'tagging_runs'),
-      where('createdBy', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('createdBy', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -67,6 +69,15 @@ export default function CosmicObserverPage() {
         id: doc.id,
         ...doc.data()
       })) as TaggingRun[];
+
+      // Sort client-side to ensure the newest runs are first
+      runs.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toMillis() - a.createdAt.toMillis();
+        }
+        return 0;
+      });
+
       setHistory(runs.slice(0, 20));
     }, (err) => {
         console.error("History fetch error:", err)
