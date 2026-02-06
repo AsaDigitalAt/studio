@@ -35,12 +35,17 @@ export default function LoginPage() {
       router.push('/analysis');
     } catch (error: any) {
       console.error('Error signing in:', error);
-      let description = "Ocorreu um erro desconhecido.";
+      let description = `Ocorreu um erro desconhecido. (Código: ${error.code})`;
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
           description = "Email ou senha inválidos. Por favor, tente novamente.";
       } else if (error.code === 'auth/invalid-email') {
           description = "O formato do email é inválido.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+          description = "Login por email e senha não está ativado no Firebase. Por favor, ative-o no console.";
+      } else if (error.code === 'auth/network-request-failed') {
+          description = "Erro de rede. Verifique sua conexão com a internet.";
       }
+      
       toast({
         variant: "destructive",
         title: "Falha no Login",
