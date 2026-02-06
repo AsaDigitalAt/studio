@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const { auth } = useAuth();
   const { firestore } = useFirestore();
   const { toast } = useToast();
+  const { user, loading: userLoading } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -81,10 +82,10 @@ export default function LoginPage() {
   };
 
   React.useEffect(() => {
-    if (auth?.currentUser) {
+    if (!userLoading && user) {
       router.push('/analysis');
     }
-  }, [auth, router]);
+  }, [user, userLoading, router]);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans pb-20 relative overflow-x-hidden">

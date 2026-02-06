@@ -27,7 +27,7 @@ import { useAuth, useFirestore, useUser } from '@/firebase';
 // Main Application Component
 export default function CosmicObserverPage() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const { firestore } = useFirestore();
   const { auth } = useAuth();
 
@@ -48,10 +48,10 @@ export default function CosmicObserverPage() {
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (!user) {
+    if (!userLoading && !user) {
       router.push('/');
     }
-  }, [user, router]);
+  }, [user, userLoading, router]);
   
   useEffect(() => {
     if (!user || !firestore) return;
@@ -213,8 +213,8 @@ export default function CosmicObserverPage() {
   const isAnalyzing = status === 'analyzing' || isPending;
   const isInputDisabled = isAnalyzing || status === 'review' || status === 'saving';
 
-  if (!user) {
-    return null; // Ou um spinner de carregamento
+  if (userLoading || !user) {
+    return null; // A tela de loading global cuidará disso.
   }
 
   return (
