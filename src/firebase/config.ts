@@ -12,7 +12,7 @@ export const firebaseConfig: FirebaseOptions = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'YOUR_API_KEY') {
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'AIzaSyBGLUE8OIIUxQfRW9VVHPN5pMaSTYtHFZw') {
   console.warn(
     'Firebase is not configured. Please add your Firebase project credentials to the .env file'
   );

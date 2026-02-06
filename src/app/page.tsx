@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { useAuth } from '@/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth, useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ import AppHeader from '@/components/app/app-header';
 export default function LoginPage() {
   const router = useRouter();
   const { auth } = useAuth();
+  const { firestore } = useFirestore();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,18 +23,35 @@ export default function LoginPage() {
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) {
+    if (!auth || !firestore) {
       toast({
         variant: "destructive",
-        title: "Erro de Autenticação",
-        description: "O serviço de autenticação não está pronto.",
+        title: "Erro de Configuração",
+        description: "O serviço de autenticação ou banco de dados não está pronto.",
       });
       return;
     }
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Create user document in Firestore on first login
+      const userDocRef = doc(firestore, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          email: user.email,
+          createdAt: serverTimestamp(),
+          displayName: user.displayName || user.email?.split('@')[0],
+          photoURL: user.photoURL || `https://api.dicebear.com/8.x/bottts/svg?seed=${user.uid}`
+        });
+      }
+      
       router.push('/analysis');
+
     } catch (error: any) {
       console.error('Error signing in:', error);
       let description = `Ocorreu um erro desconhecido. (Código: ${error.code})`;
