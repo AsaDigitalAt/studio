@@ -65,6 +65,8 @@ export default function LoginPage() {
           description = "Erro de rede. Verifique sua conexão com a internet.";
       } else if (error.code === 'auth/invalid-api-key') {
           description = "A chave da API do Firebase é inválida. Verifique a configuração no arquivo .env.";
+      } else if (error.code === 'permission-denied') {
+          description = "Permissão negada para acessar o banco de dados. Verifique as regras de segurança do Firestore.";
       }
       
       toast({
