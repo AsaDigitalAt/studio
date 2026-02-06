@@ -8,11 +8,11 @@ export async function getSentimentAnalysis(
   commentCount: string
 ): Promise<{ data: SentimentOutput } | { error: string }> {
   
-  const webhookUrl = 'https://unreleasible-pocked-azucena.ngrok-free.dev/webhook/sentimento';
+  const webhookUrl = process.env.N8N_WEBHOOK_URL;
 
-  if (!webhookUrl || webhookUrl.includes('placeholder')) {
-    console.error('N8N_WEBHOOK_URL is not set or is a placeholder.');
-    return { error: 'A URL do webhook de análise não está configurada.' };
+  if (!webhookUrl || webhookUrl.includes('YOUR_N8N_WEBHOOK_URL_HERE')) {
+    console.error('N8N_WEBHOOK_URL is not set or is a placeholder in .env file.');
+    return { error: 'A URL do webhook de análise (N8N_WEBHOOK_URL) não está configurada no arquivo .env.' };
   }
   
   console.log('Sending data to N8N webhook for analysis:', { url, caption, commentCount });
@@ -34,7 +34,7 @@ export async function getSentimentAnalysis(
     if (!response.ok) {
       const errorBody = await response.text();
       console.error(`N8N webhook returned an error: ${response.status} ${response.statusText}`, {errorBody});
-      return { error: `O serviço de análise retornou um erro: ${response.status}. Detalhes: ${errorBody}` };
+      return { error: `O serviço de análise retornou um erro: ${response.status}. Verifique a URL e o status do seu webhook N8N. Detalhes: ${errorBody.substring(0, 150)}` };
     }
     
     let responseData;
@@ -43,7 +43,7 @@ export async function getSentimentAnalysis(
     } catch (e) {
       const responseText = await response.text().catch(() => 'Não foi possível ler o texto da resposta.');
       console.error('Falha ao analisar JSON do webhook N8N. Texto da resposta:', responseText, e);
-      return { error: `O serviço de análise retornou uma resposta inválida. Resposta recebida: ${responseText.substring(0, 100)}...` };
+      return { error: `O serviço de análise retornou uma resposta inesperada (não era um JSON). Verifique se a URL do webhook (${webhookUrl}) está correta, ativa e não está exibindo uma página de aviso. Resposta recebida: ${responseText.substring(0, 100)}...` };
     }
     
     // N8N can return an array of items, we're interested in the first one's JSON output.
@@ -83,7 +83,7 @@ export async function getSentimentAnalysis(
     console.error('Failed to call N8N webhook:', error);
     if (error instanceof Error) {
         if (error.name === 'AbortError' || (error as any).code === 'ECONNRESET') {
-           return { error: 'A conexão com o serviço de análise excedeu o tempo limite.' };
+           return { error: 'A conexão com o serviço de análise excedeu o tempo limite. Verifique se o webhook está ativo e responsivo.' };
         }
         return { error: `Falha na comunicação com o serviço de análise: ${error.message}` };
     }
