@@ -56,9 +56,9 @@ export async function getSentimentAnalysis(
     const data: SentimentOutput = {
       resumo_geral: rawData.resumo_geral || 'Nenhum resumo foi gerado.',
       totais: {
-        positivo: rawData.totais?.positivo ?? 0,
-        neutro: rawData.totais?.neutro ?? 0,
-        negativo: rawData.totais?.negativo ?? 0,
+        positivo: rawData.totais?.positivo ?? rawData.totais?.positivos ?? 0,
+        neutro: rawData.totais?.neutro ?? rawData.totais?.neutros ?? 0,
+        negativo: rawData.totais?.negativo ?? rawData.totais?.negativos ?? 0,
         total: rawData.totais?.total ?? 0,
       },
       comentarios_analisados: (rawData.comentarios_analisados || []).map((c: any): CommentAnalysis => ({
