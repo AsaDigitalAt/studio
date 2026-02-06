@@ -37,15 +37,18 @@ export async function getSentimentAnalysis(
       return { error: `O serviço de análise retornou um erro: ${response.status}.` };
     }
 
-    let rawData = await response.json();
+    let responseData = await response.json();
 
-    // N8N webhooks sometimes wrap single responses in an array.
-    if (Array.isArray(rawData) && rawData.length > 0) {
-      rawData = rawData[0];
+    // N8N webhooks sometimes wrap responses in an array.
+    if (Array.isArray(responseData) && responseData.length > 0) {
+      responseData = responseData[0];
     }
     
+    // The actual data is nested under the 'output' key
+    const rawData = responseData.output;
+
     if (typeof rawData !== 'object' || rawData === null) {
-      console.error('Webhook returned invalid data format:', rawData);
+      console.error('Webhook returned invalid data format or missing "output" key:', responseData);
       return { error: 'O serviço de análise retornou uma resposta em formato inválido.' };
     }
 
@@ -53,9 +56,9 @@ export async function getSentimentAnalysis(
     const data: SentimentOutput = {
       resumo_geral: rawData.resumo_geral || 'Nenhum resumo foi gerado.',
       totais: {
-        positivos: rawData.totais?.positivos ?? 0,
-        neutros: rawData.totais?.neutros ?? 0,
-        negativos: rawData.totais?.negativos ?? 0,
+        positivo: rawData.totais?.positivo ?? 0,
+        neutro: rawData.totais?.neutro ?? 0,
+        negativo: rawData.totais?.negativo ?? 0,
         total: rawData.totais?.total ?? 0,
       },
       comentarios_analisados: (rawData.comentarios_analisados || []).map((c: any): CommentAnalysis => ({

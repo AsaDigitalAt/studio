@@ -78,15 +78,15 @@ export default function AnalysisDashboard({
 
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 flex flex-col items-center justify-center gap-1 hover:bg-emerald-500/10 transition-colors">
-              <span className="text-2xl font-bold text-emerald-400">{analysis.sentimentData.totais.positivos}</span>
+              <span className="text-2xl font-bold text-emerald-400">{analysis.sentimentData.totais.positivo}</span>
               <span className="text-[10px] uppercase tracking-wider text-emerald-500/70 font-bold">Positivos</span>
             </div>
             <div className="bg-zinc-500/5 border border-zinc-500/10 rounded-2xl p-4 flex flex-col items-center justify-center gap-1 hover:bg-zinc-500/10 transition-colors">
-              <span className="text-2xl font-bold text-zinc-400">{analysis.sentimentData.totais.neutros}</span>
+              <span className="text-2xl font-bold text-zinc-400">{analysis.sentimentData.totais.neutro}</span>
               <span className="text-[10px] uppercase tracking-wider text-zinc-500/70 font-bold">Neutros</span>
             </div>
             <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4 flex flex-col items-center justify-center gap-1 hover:bg-red-500/10 transition-colors">
-              <span className="text-2xl font-bold text-red-400">{analysis.sentimentData.totais.negativos}</span>
+              <span className="text-2xl font-bold text-red-400">{analysis.sentimentData.totais.negativo}</span>
               <span className="text-[10px] uppercase tracking-wider text-red-500/70 font-bold">Negativos</span>
             </div>
           </div>
