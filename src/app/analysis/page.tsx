@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 // --- Firebase Imports ---
 import { type User } from 'firebase/auth';
-import { collection, addDoc, onSnapshot, query, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, serverTimestamp, orderBy, where } from 'firebase/firestore';
 
 // --- Local Imports ---
 import { useToast } from '@/hooks/use-toast';
@@ -58,6 +58,7 @@ export default function CosmicObserverPage() {
     
     const q = query(
       collection(firestore, 'tagging_runs'),
+      where('createdBy', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
 
@@ -190,7 +191,7 @@ export default function CosmicObserverPage() {
         normalizedUrl: run.normalizedUrl,
         suggestedUsernames: [],
         warnings: ["Análise detalhada de sentimento não é persistida no histórico."],
-        sentimentData: run.sentimentSummary ? { resumo_geral: run.sentimentSummary, totais: {positivo: 0, negativo: 0, neutro: 0, total: run.commentCount || 0}, comentarios_analisados: [] } : undefined
+        sentimentData: run.sentimentSummary ? { resumo_geral: run.sentimentSummary, totais: {positivos: 0, negativos: 0, neutros: 0, total: run.commentCount || 0}, comentarios_analisados: [] } : undefined
     });
     setConfirmedTags(run.confirmedUsernames);
     setStatus('review');
