@@ -129,7 +129,7 @@ export default function CosmicObserverPage() {
       const webhookUsernames = sentimentData.comentarios_analisados.map(c => sanitizeUsername(c.nome_usuario));
       const allTags = Array.from(new Set([...localResult.suggestedUsernames, ...webhookUsernames]));
       const warnings = [...localResult.warnings];
-      if (allTags.length === 0 && !sentimentData) {
+      if (allTags.length === 0) {
          if (!warnings.includes('Nenhum dado detectado.')) warnings.push('Nenhum dado detectado.');
       }
 
