@@ -63,6 +63,8 @@ export default function LoginPage() {
           description = "Login por email e senha não está ativado no Firebase. Por favor, ative-o no console.";
       } else if (error.code === 'auth/network-request-failed') {
           description = "Erro de rede. Verifique sua conexão com a internet.";
+      } else if (error.code === 'auth/invalid-api-key') {
+          description = "A chave da API do Firebase é inválida. Verifique a configuração no arquivo .env.";
       }
       
       toast({

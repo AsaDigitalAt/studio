@@ -12,8 +12,12 @@ export const firebaseConfig: FirebaseOptions = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'AIzaSyBGLUE8OIIUxQfRW9VVHPN5pMaSTYtHFZw') {
-  console.warn(
-    'Firebase is not configured. Please add your Firebase project credentials to the .env file'
+if (!firebaseConfig.apiKey) {
+  console.error(
+    '*******************************************************************************************\n' +
+    '** FATAL ERROR: FIREBASE API KEY IS MISSING!                                             **\n' +
+    '** The application cannot connect to Firebase without a valid API key.                   **\n' +
+    '** Please add your NEXT_PUBLIC_FIREBASE_API_KEY from your Firebase project to the `.env` file. **\n' +
+    '*******************************************************************************************'
   );
 }
