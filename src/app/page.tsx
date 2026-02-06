@@ -108,27 +108,23 @@ export default function CosmicObserverPage() {
     if (!url || !optionalText) return;
     
     setStatus('analyzing');
-    setLoadingText('Sincronizando com o cosmos...');
+    setLoadingText('Acessando os fluxos de sentimento...');
 
     startTransition(async () => {
-      const localResult = analyzeLink(url, optionalText);
-      setLoadingText('Acessando os fluxos de sentimento...');
-      
       const result = await getSentimentAnalysis(url, optionalText, commentCount);
       
       if (result.error) {
         console.warn("Error from analysis action:", result.error);
-        setAnalysis(localResult);
-        setConfirmedTags(localResult.suggestedUsernames);
         toast({
           variant: "destructive",
           title: "Análise Remota Indisponível",
-          description: result.error || "Exibindo apenas extração local de dados.",
+          description: result.error || "Não foi possível obter dados do webhook.",
         });
-        setStatus('review');
+        setStatus('idle');
         return;
       }
       
+      const localResult = analyzeLink(url, optionalText);
       const sentimentData = result.data;
       const webhookUsernames = sentimentData.comentarios_analisados.map(c => sanitizeUsername(c.nome_usuario));
       const allTags = Array.from(new Set([...localResult.suggestedUsernames, ...webhookUsernames]));
