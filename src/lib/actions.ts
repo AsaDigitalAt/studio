@@ -7,16 +7,17 @@ export async function getSentimentAnalysis(
   caption: string,
   commentCount: string
 ): Promise<{ data: SentimentOutput } | { error: string }> {
+  
+  const webhookUrl = 'https://unreleasible-pocked-azucena.ngrok-free.dev/webhook/sentimento';
+
+  if (!webhookUrl || webhookUrl.includes('placeholder')) {
+    console.error('N8N_WEBHOOK_URL is not set or is a placeholder.');
+    return { error: 'A URL do webhook de análise não está configurada.' };
+  }
+  
+  console.log('Sending data to N8N webhook for analysis:', { url, caption, commentCount });
+
   try {
-    const webhookUrl = 'https://unreleasible-pocked-azucena.ngrok-free.dev/webhook/sentimento';
-
-    if (!webhookUrl || webhookUrl.includes('placeholder')) {
-      console.error('N8N_WEBHOOK_URL is not set or is a placeholder.');
-      return { error: 'A URL do webhook de análise não está configurada.' };
-    }
-
-    console.log('Sending data to N8N webhook for analysis:', { url, caption, commentCount });
-
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -32,25 +33,16 @@ export async function getSentimentAnalysis(
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`N8N webhook returned an error: ${response.status} ${response.statusText}`, { errorBody });
-      return { error: `O serviço de análise retornou um erro: ${response.status}. Detalhes: ${errorBody}` };
-    }
-    
-    const responseText = await response.text();
-    let responseData;
-    try {
-        responseData = JSON.parse(responseText);
-    } catch (e) {
-        console.error('Failed to parse JSON from webhook:', responseText);
-        return { error: 'O serviço de análise retornou uma resposta que não é um JSON válido.' };
+      console.error(`N8N webhook returned an error: ${response.status} ${response.statusText}`, {errorBody});
+      return { error: `O serviço de análise retornou um erro: ${response.status}.` };
     }
 
-    // N8N webhooks sometimes wrap responses in an array.
+    let responseData = await response.json();
+
     if (Array.isArray(responseData) && responseData.length > 0) {
       responseData = responseData[0];
     }
-
-    // The actual data is nested under the 'output' key
+    
     const rawData = responseData.output;
 
     if (typeof rawData !== 'object' || rawData === null) {
@@ -58,22 +50,24 @@ export async function getSentimentAnalysis(
       return { error: 'O serviço de análise retornou uma resposta em formato inválido.' };
     }
 
-    // Re-construct the object to ensure it's a plain, serializable object and handle missing data.
+    const totais = rawData.totais || {};
+    const comentarios = rawData.comentarios_analisados || [];
+
     const data: SentimentOutput = {
       resumo_geral: rawData.resumo_geral || 'Nenhum resumo foi gerado.',
       totais: {
-        positivo: rawData.totais?.positivo ?? rawData.totais?.positivos ?? 0,
-        neutro: rawData.totais?.neutro ?? rawData.totais?.neutros ?? 0,
-        negativo: rawData.totais?.negativo ?? rawData.totais?.negativos ?? 0,
-        total: rawData.totais?.total ?? 0,
+        positivos: totais.positivos ?? 0,
+        neutros: totais.neutros ?? 0,
+        negativos: totais.negativos ?? 0,
+        total: totais.total_comentarios ?? 0,
       },
-      comentarios_analisados: (rawData.comentarios_analisados || []).map((c: any): CommentAnalysis => ({
-        nome_usuario: c?.nome_usuario || 'desconhecido',
-        link_comentario: c?.link_comentario || '',
-        texto: c?.texto || '',
-        sentimento: c?.sentimento || 'NEUTRAL',
-        justificativa_curta: c?.justificativa_curta || '',
-        confianca: c?.confianca ?? 0,
+      comentarios_analisados: comentarios.map((c: any): CommentAnalysis => ({
+        nome_usuario: c.nome_usuario || 'desconhecido',
+        link_comentario: c.link_comentario || '',
+        texto: c.texto || '',
+        sentimento: c.sentimento || 'NEUTRAL',
+        justificativa_curta: c.justificativa_curta || '',
+        confianca: c.confianca ?? 0,
       })),
     };
 
@@ -82,7 +76,7 @@ export async function getSentimentAnalysis(
   } catch (error) {
     console.error('Failed to call N8N webhook:', error);
     if (error instanceof Error) {
-      return { error: `Falha na comunicação com o serviço de análise: ${error.message}` };
+        return { error: `Falha na comunicação com o serviço de análise: ${error.message}` };
     }
     return { error: 'Ocorreu um erro desconhecido ao contatar o serviço de análise.' };
   }
