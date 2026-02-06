@@ -2,10 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
-      // Allow any authenticated user to read user profiles.
-      allow read: if request.auth != null;
-      // Only allow a user to create or update their own profile.
-      allow write: if request.auth != null && request.auth.uid == userId;
+      // Only allow a user to read, create, or update their own profile.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
     match /tagging_runs/{taggingRunId} {

@@ -44,6 +44,7 @@ export default function LoginPage() {
         await setDoc(userDocRef, {
           uid: user.uid,
           email: user.email,
+          status: 'active',
           createdAt: serverTimestamp(),
           displayName: user.displayName || user.email?.split('@')[0],
           photoURL: user.photoURL || `https://api.dicebear.com/8.x/bottts/svg?seed=${user.uid}`
