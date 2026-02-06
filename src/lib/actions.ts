@@ -37,24 +37,34 @@ export async function getSentimentAnalysis(
       return { error: `O serviço de análise retornou um erro: ${response.status}.` };
     }
 
-    const rawData = await response.json();
+    let rawData = await response.json();
 
-    // Re-construct the object to ensure it's a plain, serializable object.
+    // N8N webhooks sometimes wrap single responses in an array.
+    if (Array.isArray(rawData) && rawData.length > 0) {
+      rawData = rawData[0];
+    }
+    
+    if (typeof rawData !== 'object' || rawData === null) {
+      console.error('Webhook returned invalid data format:', rawData);
+      return { error: 'O serviço de análise retornou uma resposta em formato inválido.' };
+    }
+
+    // Re-construct the object to ensure it's a plain, serializable object and handle missing data.
     const data: SentimentOutput = {
-      resumo_geral: rawData.resumo_geral,
+      resumo_geral: rawData.resumo_geral || 'Nenhum resumo foi gerado.',
       totais: {
-        positivos: rawData.totais.positivos,
-        neutros: rawData.totais.neutros,
-        negativos: rawData.totais.negativos,
-        total: rawData.totais.total,
+        positivos: rawData.totais?.positivos ?? 0,
+        neutros: rawData.totais?.neutros ?? 0,
+        negativos: rawData.totais?.negativos ?? 0,
+        total: rawData.totais?.total ?? 0,
       },
       comentarios_analisados: (rawData.comentarios_analisados || []).map((c: any): CommentAnalysis => ({
-        nome_usuario: c.nome_usuario,
-        link_comentario: c.link_comentario,
-        texto: c.texto,
-        sentimento: c.sentimento,
-        justificativa_curta: c.justificativa_curta,
-        confianca: c.confianca,
+        nome_usuario: c.nome_usuario || 'desconhecido',
+        link_comentario: c.link_comentario || '',
+        texto: c.texto || '',
+        sentimento: c.sentimento || 'NEUTRAL',
+        justificativa_curta: c.justificativa_curta || '',
+        confianca: c.confianca ?? 0,
       })),
     };
 
