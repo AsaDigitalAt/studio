@@ -56,9 +56,6 @@ export default function CosmicObserverPage() {
   useEffect(() => {
     if (!user || !firestore) return;
 
-    // The query on createdBy and createdAt requires a composite index in Firestore.
-    // To avoid forcing manual index creation in the Firebase console,
-    // we'll fetch without ordering and sort on the client.
     const q = query(
       collection(firestore, 'tagging_runs'),
       where('createdBy', '==', user.uid)
@@ -70,7 +67,6 @@ export default function CosmicObserverPage() {
         ...doc.data()
       })) as TaggingRun[];
 
-      // Sort client-side to ensure the newest runs are first
       runs.sort((a, b) => {
         if (a.createdAt && b.createdAt) {
           return b.createdAt.toMillis() - a.createdAt.toMillis();
@@ -98,18 +94,58 @@ export default function CosmicObserverPage() {
     setLoadingText('Acessando os fluxos de sentimento...');
 
     startTransition(async () => {
-      const remoteAnalysisResult = await getSentimentAnalysis(url, optionalText, commentCount);
-      const localResult = analyzeLink(url, optionalText);
-      
       let finalAnalysis: AnalysisResult;
+      const localResult = analyzeLink(url, optionalText);
 
-      if (remoteAnalysisResult.error) {
+      try {
+        const remoteAnalysisResult = await getSentimentAnalysis(url, optionalText, commentCount);
+        
+        if (remoteAnalysisResult.error) {
+          toast({
+            variant: "destructive",
+            title: "Análise Remota Indisponível",
+            description: "Exibindo dados de fallback. " + remoteAnalysisResult.error,
+          });
+          
+          finalAnalysis = {
+            ...localResult,
+            warnings: [
+              ...localResult.warnings,
+              "A análise de sentimento falhou. Os dados abaixo são um fallback com base apenas no link e legenda."
+            ],
+            sentimentData: undefined
+          };
+          setConfirmedTags(localResult.suggestedUsernames);
+
+        } else {
+          const sentimentData = remoteAnalysisResult.data;
+          const webhookUsernames = sentimentData.comentarios_analisados.map(c => sanitizeUsername(c.nome_usuario));
+          const allTags = Array.from(new Set([...localResult.suggestedUsernames, ...webhookUsernames]));
+          const warnings = [...localResult.warnings];
+          if (allTags.length === 0) {
+             if (!warnings.includes('Nenhum dado detectado.')) warnings.push('Nenhum dado detectado.');
+          }
+
+          finalAnalysis = {
+            ...localResult,
+            suggestedUsernames: allTags,
+            sentimentData: sentimentData,
+            warnings: warnings
+          };
+          setConfirmedTags(allTags);
+          toast({
+            title: "Análise Concluída",
+            description: "Dados de sentimento recebidos com sucesso!",
+          });
+        }
+      } catch (err) {
+        console.error("Falha ao executar a ação de análise de sentimento:", err);
         toast({
           variant: "destructive",
-          title: "Análise Remota Indisponível",
-          description: "Exibindo dados de fallback. " + remoteAnalysisResult.error,
+          title: "Erro na Análise",
+          description: "Ocorreu um erro inesperado na comunicação com o serviço. Exibindo dados de fallback.",
         });
-        
+
         finalAnalysis = {
           ...localResult,
           warnings: [
@@ -119,27 +155,6 @@ export default function CosmicObserverPage() {
           sentimentData: undefined
         };
         setConfirmedTags(localResult.suggestedUsernames);
-
-      } else {
-        const sentimentData = remoteAnalysisResult.data;
-        const webhookUsernames = sentimentData.comentarios_analisados.map(c => sanitizeUsername(c.nome_usuario));
-        const allTags = Array.from(new Set([...localResult.suggestedUsernames, ...webhookUsernames]));
-        const warnings = [...localResult.warnings];
-        if (allTags.length === 0) {
-           if (!warnings.includes('Nenhum dado detectado.')) warnings.push('Nenhum dado detectado.');
-        }
-
-        finalAnalysis = {
-          ...localResult,
-          suggestedUsernames: allTags,
-          sentimentData: sentimentData,
-          warnings: warnings
-        };
-        setConfirmedTags(allTags);
-        toast({
-          title: "Análise Concluída",
-          description: "Dados de sentimento recebidos com sucesso!",
-        });
       }
 
       setAnalysis(finalAnalysis);
@@ -225,8 +240,12 @@ export default function CosmicObserverPage() {
   const isAnalyzing = status === 'analyzing' || isPending;
   const isInputDisabled = isAnalyzing || status === 'review' || status === 'saving';
 
-  if (userLoading || !user) {
-    return null; // A tela de loading global cuidará disso.
+  if (userLoading) {
+    return null; 
+  }
+  
+  if (!user) {
+    return null;
   }
 
   return (

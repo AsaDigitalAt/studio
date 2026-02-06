@@ -34,20 +34,26 @@ export async function getSentimentAnalysis(
     if (!response.ok) {
       const errorBody = await response.text();
       console.error(`N8N webhook returned an error: ${response.status} ${response.statusText}`, {errorBody});
-      return { error: `O serviço de análise retornou um erro: ${response.status}.` };
-    }
-
-    let responseData = await response.json();
-
-    if (Array.isArray(responseData) && responseData.length > 0) {
-      responseData = responseData[0];
+      return { error: `O serviço de análise retornou um erro: ${response.status}. Detalhes: ${errorBody}` };
     }
     
-    const rawData = responseData.output;
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (e) {
+      const responseText = await response.text().catch(() => 'Não foi possível ler o texto da resposta.');
+      console.error('Falha ao analisar JSON do webhook N8N. Texto da resposta:', responseText, e);
+      return { error: `O serviço de análise retornou uma resposta inválida. Resposta recebida: ${responseText.substring(0, 100)}...` };
+    }
+    
+    // N8N can return an array of items, we're interested in the first one's JSON output.
+    const executionData = Array.isArray(responseData) ? responseData[0] : responseData;
+    const rawData = executionData?.json?.output || executionData?.output || executionData;
+
 
     if (typeof rawData !== 'object' || rawData === null) {
-      console.error('Webhook returned invalid data format or missing "output" key:', responseData);
-      return { error: 'O serviço de análise retornou uma resposta em formato inválido.' };
+      console.error('Webhook returned invalid data format or missing expected keys:', responseData);
+      return { error: 'O serviço de análise retornou uma resposta em formato inesperado.' };
     }
 
     const totais = rawData.totais || {};
@@ -59,7 +65,7 @@ export async function getSentimentAnalysis(
         positivos: totais.positivos ?? 0,
         neutros: totais.neutros ?? 0,
         negativos: totais.negativos ?? 0,
-        total: totais.total_comentarios ?? 0,
+        total: totais.total ?? totais.total_comentarios ?? 0,
       },
       comentarios_analisados: comentarios.map((c: any): CommentAnalysis => ({
         nome_usuario: c.nome_usuario || 'desconhecido',
@@ -76,6 +82,9 @@ export async function getSentimentAnalysis(
   } catch (error) {
     console.error('Failed to call N8N webhook:', error);
     if (error instanceof Error) {
+        if (error.name === 'AbortError' || (error as any).code === 'ECONNRESET') {
+           return { error: 'A conexão com o serviço de análise excedeu o tempo limite.' };
+        }
         return { error: `Falha na comunicação com o serviço de análise: ${error.message}` };
     }
     return { error: 'Ocorreu um erro desconhecido ao contatar o serviço de análise.' };
