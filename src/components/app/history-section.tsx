@@ -55,7 +55,7 @@ export default function HistorySection({ history, onRestore }: HistorySectionPro
                        )}
                     </div>
                     <p className="truncate text-zinc-500 font-mono text-xs pr-4">{run.sourceUrl}</p>
-                    {run.sentimentSummary && (
+                    {run.sentimentSummary && run.sentimentSummary !== 'Análise em processamento...' && (
                       <div className="mt-2 text-[11px] text-zinc-500 italic border-l-2 border-white/10 pl-2 line-clamp-2">
                          "{run.sentimentSummary}"
                       </div>
