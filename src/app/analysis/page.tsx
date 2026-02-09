@@ -24,8 +24,6 @@ import { Button } from '@/components/ui/button';
 import { Instagram, MessageCircle, Hash, Send } from 'lucide-react';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 
-export const maxDuration = 300;
-
 // Main Application Component
 export default function CosmicObserverPage() {
   const router = useRouter();
