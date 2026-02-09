@@ -28,10 +28,18 @@ export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export const useFirebase = () => {
+export const useAuth = () => {
   const context = useContext(FirebaseContext);
   if (!context) {
-    throw new Error('useFirebase must be used within a FirebaseClientProvider');
+    throw new Error('useAuth must be used within a FirebaseClientProvider');
   }
-  return context;
+  return { auth: context.auth };
+};
+
+export const useFirestore = () => {
+  const context = useContext(FirebaseContext);
+  if (!context) {
+    throw new Error('useFirestore must be used within a FirebaseClientProvider');
+  }
+  return { firestore: context.firestore };
 };
