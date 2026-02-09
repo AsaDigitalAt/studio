@@ -9,7 +9,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
 // --- Local Imports ---
 import { useToast } from '@/hooks/use-toast';
-import { startSentimentAnalysis, getAnalysisResult } from '@/lib/actions';
+import { startSentimentAnalysis } from '@/lib/actions';
 import { type TaggingRun } from '@/lib/types';
 import AppHeader from '@/components/app/app-header';
 import StarField from '@/components/app/starfield';
@@ -17,10 +17,8 @@ import HistorySection from '@/components/app/history-section';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Instagram, MessageCircle, Hash, Send } from 'lucide-react';
-import { useAuth, useFirestore, useUser } from '@/firebase';
-
-type Status = 'idle' | 'starting' | 'polling';
+import { Instagram, Send } from 'lucide-react';
+import { useFirestore, useUser } from '@/firebase';
 
 // Main Application Component
 export default function CosmicObserverPage() {
@@ -35,8 +33,7 @@ export default function CosmicObserverPage() {
   const [commentCount, setCommentCount] = useState<string>('');
   
   // Async State
-  const [status, setStatus] = useState<Status>('idle');
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Data State
@@ -55,7 +52,7 @@ export default function CosmicObserverPage() {
   useEffect(() => {
     if (!user || !firestore) return;
     const q = query(
-      collection(firestore, 'analysisRuns'), // Updated collection name
+      collection(firestore, 'tagging_runs'), // Corrected collection name
       where('createdBy', '==', user.uid)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -63,7 +60,7 @@ export default function CosmicObserverPage() {
         id: doc.id,
         ...doc.data()
       })) as TaggingRun[];
-      runs.sort((a, b) => (b.startedAt?.toMillis() ?? 0) - (a.startedAt?.toMillis() ?? 0));
+      runs.sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0));
       setHistory(runs.slice(0, 20));
     }, (err) => {
         console.error("History fetch error:", err);
@@ -72,80 +69,48 @@ export default function CosmicObserverPage() {
     return () => unsubscribe();
   }, [user, firestore, toast]);
 
-  // Poll for results when a run is active
-  useEffect(() => {
-    if (status !== 'polling' || !currentRunId) return;
-
-    const intervalId = setInterval(async () => {
-      const result = await getAnalysisResult(currentRunId);
-      
-      if (result.error) {
-        console.error("Polling error:", result.error);
-        // Keep polling for a while even on error, in case it's transient
-        return;
-      }
-
-      if (result.status === 'completed') {
-        clearInterval(intervalId);
-        toast({ title: 'Análise Concluída!', description: 'O resultado foi atualizado no seu histórico.' });
-        resetForm();
-      } else if (result.status === 'failed') {
-        clearInterval(intervalId);
-        toast({ variant: "destructive", title: 'Análise Falhou', description: result.error || 'Ocorreu um erro durante o processamento.' });
-        resetForm();
-      }
-      // If status is 'processing', do nothing and let the interval continue.
-    }, 5000); // Poll every 5 seconds
-
-    return () => clearInterval(intervalId); // Cleanup on unmount
-  }, [status, currentRunId, toast]);
-
-
   // --- Handlers ---
 
   const resetForm = () => {
     setUrl('');
     setOptionalText('');
     setCommentCount('');
-    setStatus('idle');
-    setCurrentRunId(null);
+    setIsProcessing(false);
   };
 
   const handleAnalyze = () => {
     if (!url || !optionalText || !user) return;
     
-    setStatus('starting');
+    setIsProcessing(true);
     startTransition(async () => {
-      const result = await startSentimentAnalysis(url, optionalText, commentCount);
+      const result = await startSentimentAnalysis(url, optionalText, commentCount, user.uid);
 
       if (result.runId) {
-        setCurrentRunId(result.runId);
-        setStatus('polling');
         toast({
-          title: "Análise Iniciada",
-          description: "O processo já começou. Você será notificado quando terminar.",
+          title: "Varredura Iniciada",
+          description: "O processo foi ativado com sucesso. O resultado será atualizado no seu histórico.",
         });
-        // Don't reset the form here, keep it disabled
+        resetForm();
       } else {
         toast({
           variant: "destructive",
           title: "Falha ao Iniciar",
           description: result.error || "Não foi possível iniciar a análise.",
         });
-        setStatus('idle'); // Reset on failure
+        setIsProcessing(false); // Reset on failure only
       }
     });
   };
 
   const restoreFromHistory = (run: TaggingRun) => {
     setUrl(run.sourceUrl);
-    setOptionalText((run as any).optionalText || '');
+    setOptionalText(run.optionalText || '');
     setCommentCount(run.commentCount ? run.commentCount.toString() : '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     toast({ title: "Dados Recuperados do Histórico", description: "Formulário preenchido com os parâmetros da missão." });
   };
   
-  const isProcessing = status === 'starting' || status === 'polling' || isPending;
+  const isFormDisabled = isProcessing || isPending;
 
   // --- Render ---
 
@@ -175,35 +140,35 @@ export default function CosmicObserverPage() {
             {/* --- FORM INPUTS --- */}
             <div className="space-y-3">
               <label className="text-[11px] uppercase tracking-widest font-bold text-zinc-500 ml-1 flex items-center gap-2"><Instagram size={12} /> Link do Post</label>
-              <Input type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://instagram.com/p/..." disabled={isProcessing} className="..." />
+              <Input type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://instagram.com/p/..." disabled={isFormDisabled} className="w-full bg-black/40 border-white/10 rounded-xl px-5 py-3 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all disabled:opacity-50 font-mono text-sm shadow-inner" />
             </div>
             <div className={`grid grid-cols-1 md:grid-cols-3 gap-6`}>
               <div className="md:col-span-2 space-y-3">
-                <label>...</label>
-                <Textarea value={optionalText} onChange={(e) => setOptionalText(e.target.value)} placeholder="Cole a legenda completa aqui..." disabled={isProcessing} className="..." />
+                <label className="text-[11px] uppercase tracking-widest font-bold text-zinc-500 ml-1">Legenda (Opcional)</label>
+                <Textarea value={optionalText} onChange={(e) => setOptionalText(e.target.value)} placeholder="Cole a legenda completa aqui..." disabled={isFormDisabled} className="w-full bg-black/40 border-white/10 rounded-xl px-5 py-3 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all disabled:opacity-50 font-mono text-sm shadow-inner min-h-[100px]" />
               </div>
               <div className="space-y-3">
-                <label>...</label>
-                <Input type="number" min="0" value={commentCount} onChange={(e) => setCommentCount(e.target.value)} placeholder="0" disabled={isProcessing} className="..." />
+                <label className="text-[11px] uppercase tracking-widest font-bold text-zinc-500 ml-1">Nº de Comentários</label>
+                <Input type="number" min="0" value={commentCount} onChange={(e) => setCommentCount(e.target.value)} placeholder="0" disabled={isFormDisabled} className="w-full bg-black/40 border-white/10 rounded-xl px-5 py-3 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all disabled:opacity-50 font-mono text-sm shadow-inner" />
               </div>
             </div>
 
-            {status === 'idle' && (
+            {!isFormDisabled && (
               <div className="pt-4">
-                <Button onClick={handleAnalyze} disabled={!url || !optionalText || isProcessing} className="...">
+                <Button onClick={handleAnalyze} disabled={!url || !optionalText} className="w-full relative overflow-hidden bg-white text-black font-bold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.5)] hover:scale-[1.01] active:scale-[0.99] text-base">
                    <span>INICIAR VARREDURA</span> <Send size={18} />
                 </Button>
               </div>
             )}
 
-            {isProcessing && (
+            {isFormDisabled && (
                <div className="py-12 flex flex-col items-center justify-center space-y-6 animate-in fade-in zoom-in duration-500">
                   <div className="relative">
                      <div className="absolute inset-0 bg-primary/20 blur-2xl animate-pulse"></div>
                      <Loader2 className="animate-spin text-primary w-12 h-12 relative z-10" />
                   </div>
                   <p className="text-zinc-400 text-sm font-medium tracking-wide text-center">
-                    {status === 'starting' ? 'Iniciando conexão com o webhook...' : 'Análise em andamento...\nIsso pode levar alguns minutos. Você pode sair desta tela.'}
+                    Iniciando conexão com o webhook...
                   </p>
                </div>
             )}
