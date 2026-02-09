@@ -33,7 +33,6 @@ export default function CosmicObserverPage() {
   const [commentCount, setCommentCount] = useState<string>('');
   
   // Async State
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Data State
@@ -71,38 +70,29 @@ export default function CosmicObserverPage() {
 
   // --- Handlers ---
 
-  const resetForm = () => {
-    setUrl('');
-    setOptionalText('');
-    setCommentCount('');
-    setIsProcessing(false);
-  };
-
   const handleAnalyze = () => {
     if (!url || !user) return;
     
-    setIsProcessing(true);
     startTransition(async () => {
       const result = await startSentimentAnalysis(url, optionalText, commentCount, user.uid);
 
-      if (result.runId) {
+      if (result.success && result.runId) {
         toast({
-          title: "Varredura Iniciada",
-          description: "O processo foi ativado com sucesso. O resultado será atualizado no seu histórico.",
+          title: "Análise Concluída!",
+          description: "Os resultados foram processados e estão prontos.",
         });
-        resetForm();
+        router.push(`/analysis/${result.runId}`);
       } else {
         toast({
           variant: "destructive",
-          title: "Falha ao Iniciar",
-          description: result.error || "Não foi possível iniciar a análise.",
+          title: "Falha na Análise",
+          description: result.error || "Não foi possível concluir a análise.",
         });
-        setIsProcessing(false); // Reset on failure only
       }
     });
   };
   
-  const isFormDisabled = isProcessing || isPending;
+  const isFormDisabled = isPending;
 
   // --- Render ---
 
@@ -160,7 +150,7 @@ export default function CosmicObserverPage() {
                      <Loader2 className="animate-spin text-primary w-12 h-12 relative z-10" />
                   </div>
                   <p className="text-zinc-400 text-sm font-medium tracking-wide text-center">
-                    Iniciando conexão com o webhook...
+                    Análise em processamento... Por favor, aguarde.
                   </p>
                </div>
             )}

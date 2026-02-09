@@ -45,4 +45,6 @@ export interface TaggingRun {
   createdBy: string;
   optionalText?: string;
   status: 'processing' | 'completed' | 'failed';
+  updatedAt?: Timestamp;
+  error?: string;
 }
