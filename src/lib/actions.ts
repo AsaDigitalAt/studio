@@ -7,15 +7,21 @@ export async function getSentimentAnalysis(
   caption: string,
   commentCount: string
 ): Promise<{ data: SentimentOutput } | { error: string }> {
-  
   const webhookUrl = process.env.N8N_WEBHOOK_URL;
 
   if (!webhookUrl || webhookUrl.includes('YOUR_N8N_WEBHOOK_URL_HERE')) {
     console.error('N8N_WEBHOOK_URL is not set or is a placeholder in .env file.');
-    return { error: 'A URL do webhook de análise (N8N_WEBHOOK_URL) não está configurada no arquivo .env.' };
+    return {
+      error:
+        'A URL do webhook de análise (N8N_WEBHOOK_URL) não está configurada no arquivo .env.',
+    };
   }
-  
-  console.log('Sending data to N8N webhook for analysis:', { url, caption, commentCount });
+
+  console.log('Sending data to N8N webhook for analysis:', {
+    url,
+    caption,
+    commentCount,
+  });
 
   try {
     const response = await fetch(webhookUrl, {
@@ -33,69 +39,86 @@ export async function getSentimentAnalysis(
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`N8N webhook returned an error: ${response.status} ${response.statusText}`, {errorBody});
-      return { error: `O serviço de análise retornou um erro: ${response.status}. Verifique a URL e o status do seu webhook N8N. Detalhes: ${errorBody.substring(0, 150)}` };
+      console.error(
+        `N8N webhook returned an error: ${response.status} ${response.statusText}`,
+        { errorBody }
+      );
+      return {
+        error: `O serviço de análise retornou um erro: ${
+          response.status
+        }. Detalhes: ${errorBody.substring(0, 200)}`,
+      };
     }
+
+    const responseData = await response.json();
     
-    const responseText = await response.text();
-    let responseData;
-    try {
-      responseData = JSON.parse(responseText);
-    } catch (e) {
-      console.error('Falha ao analisar JSON do webhook N8N. Texto da resposta:', responseText, e);
-      return { error: `O serviço de análise retornou uma resposta inesperada (não era um JSON válido). Verifique se a URL do webhook (${webhookUrl}) está correta e ativa. Resposta recebida: ${responseText.substring(0, 150)}...` };
+    // Rigorous validation based on user-provided JSON structure: [ { output: { ... } } ]
+    if (!Array.isArray(responseData) || responseData.length === 0) {
+      console.error('Webhook response was not an array or was empty.', {
+        responseData,
+      });
+      return {
+        error:
+          'Resposta inesperada do serviço. O resultado não é um array ou está vazio.',
+      };
     }
-    
-    const output = responseData?.[0]?.output;
+
+    const output = responseData[0]?.output;
 
     if (
       !output ||
       typeof output.resumo_geral !== 'string' ||
-      typeof output.totais !== 'object' ||
-      output.totais === null ||
+      !output.totais ||
+      typeof output.totais.positivo !== 'number' ||
+      typeof output.totais.neutro !== 'number' ||
+      typeof output.totais.negativo !== 'number' ||
       !Array.isArray(output.comentarios_analisados)
     ) {
       console.error(
-        'Webhook response was missing expected data fields inside the "output" property of the first array element.',
-        { responseData }
+        'Webhook response "output" property is malformed or missing fields.',
+        { output }
       );
       return {
         error:
-          'A resposta do serviço de análise está em um formato inesperado. O objeto "output" não foi encontrado ou não contém os dados esperados.',
+          'A propriedade "output" na resposta do serviço está em um formato inválido ou com campos ausentes.',
       };
     }
-
-    const totais = output.totais;
-    const comentarios = output.comentarios_analisados;
 
     const data: SentimentOutput = {
       resumo_geral: output.resumo_geral,
       totais: {
-        positivo: totais.positivo ?? 0,
-        neutro: totais.neutro ?? 0,
-        negativo: totais.negativo ?? 0,
-        total: totais.total ?? 0,
+        positivo: output.totais.positivo,
+        neutro: output.totais.neutro,
+        negativo: output.totais.negativo,
+        total: output.totais.total ?? 0,
       },
-      comentarios_analisados: comentarios.map((c: any): CommentAnalysis => ({
-        nome_usuario: c.nome_usuario ?? 'desconhecido',
-        link_comentario: c.link_comentario ?? '',
-        texto: c.texto ?? '',
-        sentimento: c.sentimento ?? 'NEUTRAL',
-        justificativa_curta: c.justificativa_curta ?? '',
-        confianca: c.confianca ?? 0,
-      })),
+      comentarios_analisados: output.comentarios_analisados.map(
+        (c: any): CommentAnalysis => ({
+          nome_usuario: c.nome_usuario ?? 'desconhecido',
+          link_comentario: c.link_comentario ?? '',
+          texto: c.texto ?? '',
+          sentimento: c.sentimento ?? 'NEUTRAL',
+          justificativa_curta: c.justificativa_curta ?? '',
+          confianca: c.confianca ?? 0,
+        })
+      ),
     };
 
     return { data };
-
-  } catch (error) {
-    console.error('Failed to call N8N webhook:', error);
-    if (error instanceof Error) {
-        if (error.name === 'AbortError' || (error as any).code === 'ECONNRESET') {
-           return { error: 'A conexão com o serviço de análise excedeu o tempo limite. Verifique se o webhook está ativo e responsivo.' };
-        }
-        return { error: `Falha na comunicação com o serviço de análise: ${error.message}` };
+  } catch (error: any) {
+    console.error('Failed to call or parse N8N webhook response:', error);
+    if (error instanceof SyntaxError) {
+      return {
+        error: `Falha ao analisar a resposta do serviço: Não é um JSON válido. Verifique se o webhook (${webhookUrl}) está retornando a estrutura correta.`,
+      };
     }
-    return { error: 'Ocorreu um erro desconhecido ao contatar o serviço de análise.' };
+    
+    if (error.name === 'AbortError' || error.code === 'ECONNRESET' || error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT') {
+       return { error: 'A conexão com o serviço de análise excedeu o tempo limite. Verifique se o webhook está ativo.' };
+    }
+    
+    return {
+      error: `Ocorreu um erro de comunicação inesperado: ${error.message}`,
+    };
   }
 }
