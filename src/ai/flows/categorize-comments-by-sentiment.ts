@@ -34,9 +34,9 @@ const CommentAnalysisSchema = CommentSchema.extend({
 export type CommentAnalysis = z.infer<typeof CommentAnalysisSchema>;
 
 const SentimentTotalsSchema = z.object({
-  positivos: z.number().describe('The number of positive comments.'),
-  neutros: z.number().describe('The number of neutral comments.'),
-  negativos: z.number().describe('The number of negative comments.'),
+  positivo: z.number().describe('The number of positive comments.'),
+  neutro: z.number().describe('The number of neutral comments.'),
+  negativo: z.number().describe('The number of negative comments.'),
   total: z.number().describe('The total number of comments.'),
 });
 

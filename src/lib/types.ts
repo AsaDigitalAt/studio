@@ -12,9 +12,9 @@ export interface CommentAnalysis {
 }
 
 export interface SentimentTotals {
-  positivos: number;
-  neutros: number;
-  negativos: number;
+  positivo: number;
+  neutro: number;
+  negativo: number;
   total: number;
 }
 

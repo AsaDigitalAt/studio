@@ -37,65 +37,51 @@ export async function getSentimentAnalysis(
       return { error: `O serviço de análise retornou um erro: ${response.status}. Verifique a URL e o status do seu webhook N8N. Detalhes: ${errorBody.substring(0, 150)}` };
     }
     
+    const responseText = await response.text();
     let responseData;
     try {
-      responseData = await response.json();
+      responseData = JSON.parse(responseText);
     } catch (e) {
-      const responseText = await response.text().catch(() => 'Não foi possível ler o texto da resposta.');
       console.error('Falha ao analisar JSON do webhook N8N. Texto da resposta:', responseText, e);
-      return { error: `O serviço de análise retornou uma resposta inesperada (não era um JSON). Verifique se a URL do webhook (${webhookUrl}) está correta, ativa e não está exibindo uma página de aviso. Resposta recebida: ${responseText.substring(0, 100)}...` };
+      return { error: `O serviço de análise retornou uma resposta inesperada (não era um JSON válido). Verifique se a URL do webhook (${webhookUrl}) está correta e ativa. Resposta recebida: ${responseText.substring(0, 150)}...` };
     }
     
-    // The webhook returns an array with a single object: `[ { "output": { ...data... } } ]`
-    // Let's parse this exact structure.
+    const output = responseData?.[0]?.output;
 
-    // 1. Check if it's an array with at least one element
-    if (!Array.isArray(responseData) || responseData.length === 0) {
-      console.error('Webhook response was not an array or was empty.', { responseData });
-      return { error: 'A resposta do webhook não está no formato esperado (esperado: array não vazio).' };
-    }
-
-    // 2. Get the first element
-    const executionData = responseData[0];
-
-    // 3. Get the 'output' property from that element
-    const rawData = executionData?.output;
-    
-    // 4. Stricter validation on the final data object
     if (
-      typeof rawData !== 'object' ||
-      rawData === null ||
-      !rawData.resumo_geral ||
-      !rawData.totais ||
-      !Array.isArray(rawData.comentarios_analisados)
+      !output ||
+      typeof output.resumo_geral !== 'string' ||
+      typeof output.totais !== 'object' ||
+      output.totais === null ||
+      !Array.isArray(output.comentarios_analisados)
     ) {
       console.error(
-        'Webhook response was missing expected data fields inside the "output" property.',
+        'Webhook response was missing expected data fields inside the "output" property of the first array element.',
         { responseData }
       );
       return {
         error:
-          'A resposta do serviço de análise está incompleta. O objeto "output" não contém os dados finais esperados.',
+          'A resposta do serviço de análise está em um formato inesperado. O objeto "output" não foi encontrado ou não contém os dados esperados.',
       };
     }
 
-    const totais = rawData.totais;
-    const comentarios = rawData.comentarios_analisados;
+    const totais = output.totais;
+    const comentarios = output.comentarios_analisados;
 
     const data: SentimentOutput = {
-      resumo_geral: rawData.resumo_geral || 'Nenhum resumo foi gerado.',
+      resumo_geral: output.resumo_geral,
       totais: {
-        positivos: totais.positivos ?? 0,
-        neutros: totais.neutros ?? 0,
-        negativos: totais.negativos ?? 0,
-        total: totais.total ?? totais.total_comentarios ?? 0,
+        positivo: totais.positivo ?? 0,
+        neutro: totais.neutro ?? 0,
+        negativo: totais.negativo ?? 0,
+        total: totais.total ?? 0,
       },
       comentarios_analisados: comentarios.map((c: any): CommentAnalysis => ({
-        nome_usuario: c.nome_usuario || 'desconhecido',
-        link_comentario: c.link_comentario || '',
-        texto: c.texto || '',
-        sentimento: c.sentimento || 'NEUTRAL',
-        justificativa_curta: c.justificativa_curta || '',
+        nome_usuario: c.nome_usuario ?? 'desconhecido',
+        link_comentario: c.link_comentario ?? '',
+        texto: c.texto ?? '',
+        sentimento: c.sentimento ?? 'NEUTRAL',
+        justificativa_curta: c.justificativa_curta ?? '',
         confianca: c.confianca ?? 0,
       })),
     };

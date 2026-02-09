@@ -229,7 +229,7 @@ export default function CosmicObserverPage() {
         normalizedUrl: run.normalizedUrl,
         suggestedUsernames: [],
         warnings: ["Análise detalhada de sentimento não é persistida no histórico."],
-        sentimentData: run.sentimentSummary ? { resumo_geral: run.sentimentSummary, totais: {positivos: 0, negativos: 0, neutros: 0, total: run.commentCount || 0}, comentarios_analisados: [] } : undefined
+        sentimentData: run.sentimentSummary ? { resumo_geral: run.sentimentSummary, totais: {positivo: 0, negativo: 0, neutro: 0, total: run.commentCount || 0}, comentarios_analisados: [] } : undefined
     });
     setConfirmedTags(run.confirmedUsernames);
     setStatus('review');
