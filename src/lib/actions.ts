@@ -35,16 +35,20 @@ export async function getSentimentAnalysis(
       cache: 'no-store',
     });
 
+    const responseBody = await response.text();
+    console.log('<<<<< INÍCIO DA RESPOSTA DO WEBHOOK >>>>>');
+    console.log(responseBody);
+    console.log('<<<<< FIM DA RESPOSTA DO WEBHOOK >>>>>');
+
     if (!response.ok) {
-      const errorBody = await response.text();
       console.error(
         `N8N webhook returned an error: ${response.status} ${response.statusText}`,
-        { errorBody }
+        { errorBody: responseBody }
       );
       return {
         error: `O serviço de análise retornou um erro: ${
           response.status
-        }. Detalhes: ${errorBody.substring(0, 200)}`,
+        }. Detalhes: ${responseBody.substring(0, 200)}`,
       };
     }
 
