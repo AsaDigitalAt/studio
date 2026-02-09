@@ -46,12 +46,22 @@ export async function getSentimentAnalysis(
       return { error: `O serviço de análise retornou uma resposta inesperada (não era um JSON). Verifique se a URL do webhook (${webhookUrl}) está correta, ativa e não está exibindo uma página de aviso. Resposta recebida: ${responseText.substring(0, 100)}...` };
     }
     
-    // N8N can return an array of items, we're interested in the first one's JSON output.
-    const executionData = Array.isArray(responseData) ? responseData[0] : responseData;
-    const rawData = executionData?.json?.output || executionData?.output || executionData;
+    // The webhook returns an array with a single object: `[ { "output": { ...data... } } ]`
+    // Let's parse this exact structure.
 
-    // Stricter validation: Ensure the response is not just a valid JSON, but contains the complete final data.
-    // This prevents the app from proceeding with an intermediate "job started" response from N8N.
+    // 1. Check if it's an array with at least one element
+    if (!Array.isArray(responseData) || responseData.length === 0) {
+      console.error('Webhook response was not an array or was empty.', { responseData });
+      return { error: 'A resposta do webhook não está no formato esperado (esperado: array não vazio).' };
+    }
+
+    // 2. Get the first element
+    const executionData = responseData[0];
+
+    // 3. Get the 'output' property from that element
+    const rawData = executionData?.output;
+    
+    // 4. Stricter validation on the final data object
     if (
       typeof rawData !== 'object' ||
       rawData === null ||
@@ -60,12 +70,12 @@ export async function getSentimentAnalysis(
       !Array.isArray(rawData.comentarios_analisados)
     ) {
       console.error(
-        'Webhook returned a JSON but it was missing the expected final data fields. This might be an intermediate response from N8N.',
+        'Webhook response was missing expected data fields inside the "output" property.',
         { responseData }
       );
       return {
         error:
-          'A resposta do serviço de análise foi recebida, mas está incompleta. O processamento pode não ter terminado. Por favor, verifique o status do seu workflow N8N.',
+          'A resposta do serviço de análise está incompleta. O objeto "output" não contém os dados finais esperados.',
       };
     }
 
