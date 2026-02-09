@@ -7,23 +7,23 @@ export async function getSentimentAnalysis(
   caption: string,
   commentCount: string
 ): Promise<{ data: SentimentOutput } | { error: string }> {
-  const webhookUrl = process.env.N8N_WEBHOOK_URL;
-
-  if (!webhookUrl || webhookUrl.includes('YOUR_N8N_WEBHOOK_URL_HERE')) {
-    console.error('N8N_WEBHOOK_URL is not set or is a placeholder in .env file.');
-    return {
-      error:
-        'A URL do webhook de análise (N8N_WEBHOOK_URL) não está configurada no arquivo .env.',
-    };
-  }
-
-  console.log('Sending data to N8N webhook for analysis:', {
-    url,
-    caption,
-    commentCount,
-  });
-
   try {
+    const webhookUrl = process.env.N8N_WEBHOOK_URL;
+
+    if (!webhookUrl || webhookUrl.includes('YOUR_N8N_WEBHOOK_URL_HERE')) {
+      console.error('N8N_WEBHOOK_URL is not set or is a placeholder in .env file.');
+      return {
+        error:
+          'A URL do webhook de análise (N8N_WEBHOOK_URL) não está configurada no arquivo .env.',
+      };
+    }
+
+    console.log('Sending data to N8N webhook for analysis:', {
+      url,
+      caption,
+      commentCount,
+    });
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -49,9 +49,22 @@ export async function getSentimentAnalysis(
         }. Detalhes: ${errorBody.substring(0, 200)}`,
       };
     }
-
-    const responseData = await response.json();
     
+    const responseText = await response.text();
+    if (!responseText) {
+        return { error: 'O serviço de análise retornou uma resposta vazia.' };
+    }
+
+    let responseData;
+    try {
+        responseData = JSON.parse(responseText);
+    } catch (e) {
+        console.error('Failed to parse N8N webhook response as JSON:', responseText);
+        return {
+            error: `Falha ao analisar a resposta do serviço: Não é um JSON válido. Verifique se o webhook (${webhookUrl}) está retornando a estrutura correta.`,
+        };
+    }
+
     // Rigorous validation based on user-provided JSON structure: [ { output: { ... } } ]
     if (!Array.isArray(responseData) || responseData.length === 0) {
       console.error('Webhook response was not an array or was empty.', {
@@ -106,15 +119,10 @@ export async function getSentimentAnalysis(
 
     return { data };
   } catch (error: any) {
-    console.error('Failed to call or parse N8N webhook response:', error);
-    if (error instanceof SyntaxError) {
-      return {
-        error: `Falha ao analisar a resposta do serviço: Não é um JSON válido. Verifique se o webhook (${webhookUrl}) está retornando a estrutura correta.`,
-      };
-    }
-    
-    if (error.name === 'AbortError' || error.code === 'ECONNRESET' || error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT') {
-       return { error: 'A conexão com o serviço de análise excedeu o tempo limite. Verifique se o webhook está ativo.' };
+    console.error('<<<<< UNHANDLED ERROR IN getSentimentAnalysis >>>>>', error);
+
+    if (error.name === 'AbortError' || error.code === 'ECONNRESET' || error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' || error.cause?.code === 'EAI_AGAIN') {
+       return { error: 'A conexão com o serviço de análise excedeu o tempo limite ou falhou. Verifique se o webhook está ativo e acessível.' };
     }
     
     return {
