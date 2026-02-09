@@ -7,7 +7,9 @@ service cloud.firestore {
     }
     
     match /tagging_runs/{taggingRunId} {
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.createdBy;
+      // Any logged-in user can create a run.
+      allow create: if request.auth != null;
+      // Only the creator can read, update, or delete their own run.
       allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
     }
   }
