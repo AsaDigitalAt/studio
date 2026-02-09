@@ -52,7 +52,7 @@ export default function CosmicObserverPage() {
   useEffect(() => {
     if (!user || !firestore) return;
     const q = query(
-      collection(firestore, 'tagging_runs'), // Corrected collection name
+      collection(firestore, 'tagging_runs'),
       where('createdBy', '==', user.uid)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -100,14 +100,6 @@ export default function CosmicObserverPage() {
         setIsProcessing(false); // Reset on failure only
       }
     });
-  };
-
-  const restoreFromHistory = (run: TaggingRun) => {
-    setUrl(run.sourceUrl);
-    setOptionalText(run.optionalText || '');
-    setCommentCount(run.commentCount ? run.commentCount.toString() : '');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    toast({ title: "Dados Recuperados do Histórico", description: "Formulário preenchido com os parâmetros da missão." });
   };
   
   const isFormDisabled = isProcessing || isPending;
@@ -175,7 +167,7 @@ export default function CosmicObserverPage() {
           </div>
         </div>
 
-        <HistorySection history={history} onRestore={restoreFromHistory} />
+        <HistorySection history={history} />
       </main>
     </div>
   );

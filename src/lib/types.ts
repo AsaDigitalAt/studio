@@ -40,7 +40,9 @@ export interface TaggingRun {
   confirmedUsernames: string[];
   commentCount?: number;
   sentimentSummary?: string;
+  sentimentData?: SentimentOutput;
   createdAt: Timestamp;
   createdBy: string;
   optionalText?: string;
+  status: 'processing' | 'completed' | 'failed';
 }
