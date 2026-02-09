@@ -10,8 +10,14 @@ service cloud.firestore {
       // Allow create if the incoming document has a non-empty `createdBy` string.
       // This is required because the server action that creates the run is not authenticated as a user.
       allow create: if request.resource.data.createdBy is string && request.resource.data.createdBy != '';
-      // Only the creator can read, update, or delete their own run.
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
+
+      // Only the creator can read or delete their own run.
+      allow read, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
+      
+      // Allow updates by the creator, OR by an unauthenticated service (like the N8N webhook)
+      // as long as the owner (`createdBy`) is not changed.
+      allow update: if (request.auth != null && request.auth.uid == resource.data.createdBy) ||
+                       (request.auth == null && request.resource.data.createdBy == resource.data.createdBy);
     }
   }
 }
