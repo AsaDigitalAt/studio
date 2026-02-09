@@ -50,14 +50,27 @@ export async function getSentimentAnalysis(
     const executionData = Array.isArray(responseData) ? responseData[0] : responseData;
     const rawData = executionData?.json?.output || executionData?.output || executionData;
 
-
-    if (typeof rawData !== 'object' || rawData === null) {
-      console.error('Webhook returned invalid data format or missing expected keys:', responseData);
-      return { error: 'O serviço de análise retornou uma resposta em formato inesperado.' };
+    // Stricter validation: Ensure the response is not just a valid JSON, but contains the complete final data.
+    // This prevents the app from proceeding with an intermediate "job started" response from N8N.
+    if (
+      typeof rawData !== 'object' ||
+      rawData === null ||
+      !rawData.resumo_geral ||
+      !rawData.totais ||
+      !Array.isArray(rawData.comentarios_analisados)
+    ) {
+      console.error(
+        'Webhook returned a JSON but it was missing the expected final data fields. This might be an intermediate response from N8N.',
+        { responseData }
+      );
+      return {
+        error:
+          'A resposta do serviço de análise foi recebida, mas está incompleta. O processamento pode não ter terminado. Por favor, verifique o status do seu workflow N8N.',
+      };
     }
 
-    const totais = rawData.totais || {};
-    const comentarios = rawData.comentarios_analisados || [];
+    const totais = rawData.totais;
+    const comentarios = rawData.comentarios_analisados;
 
     const data: SentimentOutput = {
       resumo_geral: rawData.resumo_geral || 'Nenhum resumo foi gerado.',
