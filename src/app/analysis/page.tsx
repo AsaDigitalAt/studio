@@ -79,7 +79,7 @@ export default function CosmicObserverPage() {
   };
 
   const handleAnalyze = () => {
-    if (!url || !optionalText || !user) return;
+    if (!url || !user) return;
     
     setIsProcessing(true);
     startTransition(async () => {
@@ -147,7 +147,7 @@ export default function CosmicObserverPage() {
 
             {!isFormDisabled && (
               <div className="pt-4">
-                <Button onClick={handleAnalyze} disabled={!url || !optionalText} className="w-full relative overflow-hidden bg-white text-black font-bold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.5)] hover:scale-[1.01] active:scale-[0.99] text-base">
+                <Button onClick={handleAnalyze} disabled={!url} className="w-full relative overflow-hidden bg-white text-black font-bold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.5)] hover:scale-[1.01] active:scale-[0.99] text-base">
                    <span>INICIAR VARREDURA</span> <Send size={18} />
                 </Button>
               </div>

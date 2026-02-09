@@ -1,7 +1,8 @@
 'use server';
 
 import { db } from '@/firebase/server';
-import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { analyzeLink } from '@/lib/utils';
 
 const TEST_WEBHOOK_URL = 'https://unreleasible-pocked-azucena.ngrok-free.dev/webhook-test/sentimento';
 
@@ -12,6 +13,7 @@ async function triggerWebhook(runId: string, url: string, caption: string, comme
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        runId,
         url,
         legenda: caption,
         quantidade_comentarios: commentCount ? parseInt(commentCount, 10) : 0,
@@ -19,18 +21,15 @@ async function triggerWebhook(runId: string, url: string, caption: string, comme
       cache: 'no-store',
     });
 
+    const responseBody = await response.text();
+    console.log(`[Run ID: ${runId}] Resposta do webhook (${response.status}):`, responseBody);
+
     if (!response.ok) {
-      const responseBody = await response.text();
       throw new Error(`Resposta do webhook: ${response.status} ${responseBody}`);
     }
 
-    console.log(`[Run ID: ${runId}] Webhook ativado com sucesso.`);
-    // Se a resposta for OK, o status no Firestore permanecerá 'processing',
-    // aguardando o próprio N8N atualizar para 'completed' ou 'failed'.
-
   } catch (error: any) {
     console.error(`[Run ID: ${runId}] Falha ao disparar webhook:`, error.message);
-    // Se o webhook falhar, marcamos a análise como falha imediatamente.
     try {
       await updateDoc(doc(db, 'tagging_runs', runId), { 
         status: 'failed',
@@ -53,23 +52,24 @@ export async function startSentimentAnalysis(
   }
 
   try {
-    // 1. Cria o registro da análise no Firestore
+    const { sourceType, normalizedUrl } = analyzeLink(url);
+
     const runRef = await addDoc(collection(db, 'tagging_runs'), {
       sourceUrl: url,
+      normalizedUrl,
+      sourceType,
       optionalText: caption,
       commentCount: commentCount ? parseInt(commentCount, 10) : 0,
       createdBy: userId,
-      createdAt: new Date(),
+      createdAt: serverTimestamp(),
       status: 'processing', // Estado inicial
       sentimentSummary: 'Análise iniciada...'
     });
     const runId = runRef.id;
     console.log(`[Run ID: ${runId}] Registro de análise criado no Firestore.`);
 
-    // 2. Dispara o webhook em segundo plano (não espera a conclusão)
     triggerWebhook(runId, url, caption, commentCount);
 
-    // 3. Retorna o ID imediatamente para a interface
     return { runId };
 
   } catch (error: any) {
