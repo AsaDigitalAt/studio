@@ -14,10 +14,10 @@ service cloud.firestore {
       // Only the creator can read or delete their own run.
       allow read, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
       
-      // Allow updates by the creator, OR by an unauthenticated service (like the N8N webhook)
-      // as long as the owner (`createdBy`) is not changed.
+      // Allow updates by the creator OR by an unauthenticated service (like the N8N webhook)
+      // as long as the `createdBy` field is not modified.
       allow update: if (request.auth != null && request.auth.uid == resource.data.createdBy) ||
-                       (request.auth == null && request.resource.data.createdBy == resource.data.createdBy);
+                       (request.auth == null && !request.resource.data.diff(resource.data).affectedKeys().has('createdBy'));
     }
   }
 }
