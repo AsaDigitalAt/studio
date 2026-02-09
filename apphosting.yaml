@@ -6,4 +6,4 @@ runConfig:
   # more instances in response to increased traffic.
   maxInstances: 1
   # Increase the timeout for long-running server actions, like webhook calls.
-  timeoutSeconds: 300
+  timeoutSeconds: 600
